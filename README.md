@@ -1,7 +1,7 @@
 # Lip Sync
 ## Description
 
-This project uses [Wave2Lip](https://github.com/Rudrabha/Wav2Lip) model to  lip sync a audio file to a target video.
+This project uses [Wave2Lip](https://github.com/Rudrabha/Wav2Lip) model to  lip sync a audio file to a target video. Please see to that this project uses model from [this](https://github.com/Rudrabha/Wav2Lip) repository which is cloned in ```Wave2lip/``` directory in the current respository. I have changed some files which can be seen in [this](https://github.com/suprasauce/LIpSync/commit/a1c56bec1a7c373ef5208ac1dd5a661b25a4950b) commit.
 
 ## SetUp (Ubuntu)
 In terminal paste the following commands:
