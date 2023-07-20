@@ -25,10 +25,8 @@ pip install -r requirements.txt
 
 ## Running the model
 ### Input to the model present in```sample/input```
-- Input audio ```audio.wav```
-![](sample/input/audio.wav)
-- Input video ```video.mp4```
-![](sample/input/video.mp4)
+- [Input audio](https://github.com/suprasauce/LIpSync/blob/main/sample/input/audio.wav)
+- [Input video](https://github.com/suprasauce/LIpSync/blob/main/sample/input/video.mp4) 
 - Assuming you are in ```Wave2Lip/```, run the following command
 ```python
 python inference.py --checkpoint_path checkpoints/wav2lip_gan.pth --face ../sample/input/video.mp4 --audio ../sample/input/audio.wav --pads 0 0 0 0
@@ -40,7 +38,7 @@ python inference.py --checkpoint_path checkpoints/wav2lip_gan.pth --face ../samp
 Following args are optional, these are passed in order to improve the results:
 - ```--pads``` is the padding to be added to the detected face bounding box. --pads \<top> \<bottom> \<left> \<right>
 ### Output 
-- ouput will be stored at ```Wave2lip/results```
-![](Wav2Lip/results/result_voice.mp4)
+- ouput produced by model will be stored at ```Wave2lip/results`
+- [ouput](https://github.com/suprasauce/LIpSync/blob/main/sample/output/output.mp4)
 
 ## Evaluation
