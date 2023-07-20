@@ -65,6 +65,29 @@ def get_smoothened_boxes(boxes, T):
 		boxes[i] = np.mean(window, axis=0)
 	return boxes
 
+def is_similar(img1, img2):
+	img1 = list(np.array(img1).flatten())
+	img2 = list(np.array(img2).flatten())
+	idx_freq1 = {}
+	idx_freq2 = {}
+	for i in img1:
+		if idx_freq1.get(i) == None:
+			idx_freq1[i] = 1
+		else:
+			idx_freq1[i] += 1
+
+	for i in img2:
+		if idx_freq2.get(i) == None:
+			idx_freq2[i] = 1
+		else:
+			idx_freq2[i] += 1
+	img1 = []
+	img2 = []
+	for i in range(256):
+		img1.append(idx_freq1.get(i, 0))
+		img2.append(idx_freq2.get(i, 0))
+	dist = np.linalg.norm(np.array(img1) - np.array(img2))
+	return True if dist <= 6800.0 else False
 def face_detect(images):
 	detector = face_detection.FaceAlignment(face_detection.LandmarksType._2D, 
 											flip_input=False, device=device)
@@ -85,17 +108,26 @@ def face_detect(images):
 		break
 
 	results = []
+	ok = []
 	pady1, pady2, padx1, padx2 = args.pads
+	char_rect = predictions[0] # on the assumption that first frame has a face
+	character_face = images[0][max(0, char_rect[1] - pady1) : min(images[0].shape[0], char_rect[3] + pady2), max(0, char_rect[0] - padx1): min(images[0].shape[1], char_rect[2] + padx2)]
 	for rect, image in zip(predictions, images):
+		# if rect is None:
+			# cv2.imwrite('temp/faulty_frame.jpg', image) # check this frame where the face was not detected.
+			# raise ValueError('Face not detected! Ensure the video contains a face in all the frames.')
+		flag = 1
 		if rect is None:
-			cv2.imwrite('temp/faulty_frame.jpg', image) # check this frame where the face was not detected.
-			raise ValueError('Face not detected! Ensure the video contains a face in all the frames.')
+			ok.append(False)
+			rect = char_rect
+			flag = 0
 
 		y1 = max(0, rect[1] - pady1)
 		y2 = min(image.shape[0], rect[3] + pady2)
 		x1 = max(0, rect[0] - padx1)
 		x2 = min(image.shape[1], rect[2] + padx2)
-		
+		if flag:
+			ok.append(True if is_similar(character_face, image[y1: y2, x1:x2]) else False)
 		results.append([x1, y1, x2, y2])
 
 	boxes = np.array(results)
@@ -103,28 +135,27 @@ def face_detect(images):
 	results = [[image[y1: y2, x1:x2], (y1, y2, x1, x2)] for image, (x1, y1, x2, y2) in zip(images, boxes)]
 
 	del detector
-	return results 
+	return results, ok
 
 def datagen(frames, mels):
-	img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
+	img_batch, mel_batch, frame_batch, coords_batch, ok_batch = [], [], [], [], []
 
 	if args.box[0] == -1:
 		if not args.static:
-			face_det_results = face_detect(frames) # BGR2RGB for CNN face detection
+			face_det_results, ok = face_detect(frames) # BGR2RGB for CNN face detection
 		else:
 			face_det_results = face_detect([frames[0]])
 	else:
 		print('Using the specified bounding box instead of face detection...')
 		y1, y2, x1, x2 = args.box
 		face_det_results = [[f[y1: y2, x1:x2], (y1, y2, x1, x2)] for f in frames]
-
 	for i, m in enumerate(mels):
 		idx = 0 if args.static else i%len(frames)
 		frame_to_save = frames[idx].copy()
 		face, coords = face_det_results[idx].copy()
 
+		ok_batch.append(ok[idx])
 		face = cv2.resize(face, (args.img_size, args.img_size))
-			
 		img_batch.append(face)
 		mel_batch.append(m)
 		frame_batch.append(frame_to_save)
@@ -139,8 +170,8 @@ def datagen(frames, mels):
 			img_batch = np.concatenate((img_masked, img_batch), axis=3) / 255.
 			mel_batch = np.reshape(mel_batch, [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
 
-			yield img_batch, mel_batch, frame_batch, coords_batch
-			img_batch, mel_batch, frame_batch, coords_batch = [], [], [], []
+			yield img_batch, mel_batch, frame_batch, coords_batch, ok_batch
+			img_batch, mel_batch, frame_batch, coords_batch, ok_batch = [], [], [], [], []
 
 	if len(img_batch) > 0:
 		img_batch, mel_batch = np.asarray(img_batch), np.asarray(mel_batch)
@@ -151,7 +182,7 @@ def datagen(frames, mels):
 		img_batch = np.concatenate((img_masked, img_batch), axis=3) / 255.
 		mel_batch = np.reshape(mel_batch, [len(mel_batch), mel_batch.shape[1], mel_batch.shape[2], 1])
 
-		yield img_batch, mel_batch, frame_batch, coords_batch
+		yield img_batch, mel_batch, frame_batch, coords_batch, ok_batch
 
 mel_step_size = 16
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -246,7 +277,7 @@ def main():
 	batch_size = args.wav2lip_batch_size
 	gen = datagen(full_frames.copy(), mel_chunks)
 
-	for i, (img_batch, mel_batch, frames, coords) in enumerate(tqdm(gen, 
+	for i, (img_batch, mel_batch, frames, coords, ok_batch) in enumerate(tqdm(gen,
 											total=int(np.ceil(float(len(mel_chunks))/batch_size)))):
 		if i == 0:
 			model = load_model(args.checkpoint_path)
@@ -264,11 +295,11 @@ def main():
 
 		pred = pred.cpu().numpy().transpose(0, 2, 3, 1) * 255.
 		
-		for p, f, c in zip(pred, frames, coords):
+		for p, f, c, ok in zip(pred, frames, coords, ok_batch):
 			y1, y2, x1, x2 = c
 			p = cv2.resize(p.astype(np.uint8), (x2 - x1, y2 - y1))
-
-			f[y1:y2, x1:x2] = p
+			if ok:
+				f[y1:y2, x1:x2] = p
 			out.write(f)
 
 	out.release()
