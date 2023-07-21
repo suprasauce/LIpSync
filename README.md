@@ -46,15 +46,16 @@ Following args are optional, these are passed in order to improve the results:
  -  A lower LSE-D denotes a higher audio-visual match, i.e., the speech and lip movements are in sync.
  -  A lower confidence score denotes that there are several portions of the video with completely out-of-sync lip movements.
  - Please follow [this](https://github.com/Rudrabha/Wav2Lip/tree/master/evaluation) guide to evaluate the generated video LSE-D and LSE-C metric.
- - I am posting the above metrica of the generated video present in ```sample/ouput/``` here:
-```
+ - I am posting the above metrics of the generated video present in ```sample/ouput/``` here:
+ ```
 | LSE-D       | LSE-C       |
 |-------------|-------------|
 | 6.445222    | 9.083874    |
 | 6.88925     | 6.717366    |
 | 7.3815765   | 7.0750103   |
-```
+ ```
 - Since the generated video contained some instances where there were no faces present, so accordingly 3 timestamps were automatically extracted by the evaluation framework. Hence 3 rows in the above table
-- For the reference Wav2Lip model was trained on LRS2 Dataset. Please find the metrics for this below:
+- For the reference Wav2Lip model was trained on LRS2 Dataset. Please find the metrics for the dataset below:
+  ![](https://github.com/suprasauce/LIpSync/blob/main/original_benchmark.png)
 
 
